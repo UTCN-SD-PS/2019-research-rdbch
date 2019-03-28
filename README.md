@@ -42,7 +42,19 @@ easydict>=1.9
 
 ## Installation guide
 
-As at this moment, there isn't a runnable part so this section will be updated in the future acordingly.
+For running this project I reccomend creating a virtual environment after  clonning it.
+<pre>
+$ cd {REPOSITORY_ROOT}
+$ virtualenv venv                # this command will create a new virtual environment in the folder venv
+$ . .\venv\scripts\activate      # this command will activate your virtual env
+</pre>
+
+To install the dependencies, run:
+<pre>
+$ pip install Assets\requirements.txt
+</pre>
+
+This stepts should setup your environment.
  
 ## How to run an example
 

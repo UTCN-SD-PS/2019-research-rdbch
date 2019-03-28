@@ -31,7 +31,19 @@ This is the repo of the FaceDetector project that I am curently doing in collabo
 - [ ] Draw conclusion
 
 ## Depencies
-  To be added
-  
+
+<pre>
+tensorflow>=1.13.0
+keras>=2.2.4
+numpy>=1.16.2
+opencv-python>=4.0.0.21
+easydict>=1.9
+</pre>
+
 ## Installation guide
- To be added
+
+As at this moment, there isn't a runnable part so this section will be updated in the future acordingly.
+ 
+## How to run an example
+
+For the moment there isn't an example available.

@@ -15,7 +15,7 @@ This is the repo of the FaceDetector project that I am curently doing in collabo
     - [x] Make a dummy dataset to better understand the data
     - [x] Implement the neural network
     - [ ] Implement the interpretation graph
-    - [ ] Implement the training algorith
+    - [ ] Implement the training algorithm
     - [ ] Implement visualization 
     - [ ] Experiment on the dummy dataset
     
@@ -51,7 +51,7 @@ $ . .\venv\scripts\activate      # this command will activate your virtual env
 
 To install the dependencies, run:
 <pre>
-$ pip install Assets\requirements.txt
+$ pip install -r Assets\requirements.txt
 </pre>
 
 This stepts should setup your environment.

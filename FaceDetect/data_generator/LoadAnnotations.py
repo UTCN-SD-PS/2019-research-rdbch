@@ -1,14 +1,8 @@
 #================================ BBOX TRANSFORM INVERSE =================================
 def bbox_transform_inv(bbox):
-    '''Transform a bounding box from shape [xmin, ymin, xmax, ymax] to [Cx, Cy, w, h]
-    
-    Arguments:
-        bbox {tuple} -- box
-    
-    Returns:
-        tuple -- the transformed box
-    '''
-
+    """convert a bbox of form [xmin, ymin, xmax, ymax] to [cx, cy, w, h]. Works
+    for numpy array or list of tensors.
+    """
     xmin, ymin, xmax, ymax = bbox
     out_box = [[]]*4
 
@@ -20,28 +14,17 @@ def bbox_transform_inv(bbox):
     out_box[3]  = height
 
     return out_box
-
 # ===================================== PROCESS DUMMY OBJ DATASET ========================
-def process_dummy_obj_dataset(line, cfg):
-    '''Take a line of the label from the generated dataset and returns a tuple with 
-    required atributes [class, [xmin, ymin, xmax, ymax]]
-    
-    Arguments:
-        line {str} -- the line from the label file
-        cfg {dict} -- easyDict file for configuration
-    
-    Returns:
-        tuple -- [class, [xmin, ymin, xmax, ymax]]
-    '''
-
+def processDummyObjDataset(line, cfg):
     obj = line.strip().split(' ')
+
     objClass = cfg.CLASS_TO_IDX[obj[0]]
-    
+
     #get coordinates
     xmin = float(obj[1])
-    ymin = float(obj[4])
+    ymin = float(obj[2])
     xmax = float(obj[3])
-    ymax = float(obj[2])
+    ymax = float(obj[4])
 
     if xmax <= xmin:
         return None
@@ -62,36 +45,26 @@ def process_dummy_obj_dataset(line, cfg):
 
 #================================ BBOX TRANSFORM INVERSE =================================
 def load_annotation(gt_file, config):
-    '''Load every annotaion for a file
-    
-    Arguments:
-        gt_file {str} -- path to the label file
-        config {dict} -- easyDict file for configuration
-    
-    Returns:
-        tuple -- a list of list containing every annotation 
-    '''
-
+   
     with open(gt_file, 'r') as f:
         lines = f.readlines()
-    f.close()
 
     annotations = []
 
     #each line is an annotation bounding box
     for line in lines:
         
-        procLine = process_dummy_obj_dataset(line, config)
-        
+        procLine = processDummyObjDataset(line, config)
+
         if procLine is not None:
             [objClass, xmin, ymin, xmax, ymax] = procLine
 
             #transform to  point + width and height representation
             x, y, w, h = bbox_transform_inv([xmin, ymin, xmax, ymax])
-
+             
             annotations.append([objClass, x, y, w, h])
         else:
-            print("Line ignored due to invalid coordinates.", line)
+            print("Line ignored", line)
 
     return annotations
 

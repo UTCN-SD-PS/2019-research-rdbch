@@ -1,9 +1,33 @@
+import cv2
 import numpy as np
-from LoadAnnotations import load_annotation
+from NeuralNetworks.SqueezeDet.data_generator.LoadAnnotations import load_annotation
+
+#================================ SPARSE TO DENSE ========================================
+def sparse_to_dense(spIdxs, outputShape, values, defaultValue=0):
+    """Build a dense matrix from sparse representations.
+
+    Args:
+        spIdxs: Index to place values.
+        outputShape: shape of the dense matrix.
+        values: Values corresponds to the index in each row of spIdxs
+        defaultValue: values to set for indices not specified in sp_indices.
+
+    Return:
+        A dense numpy N-D array with shape output_shape.
+    """
+
+    assert len(spIdxs) == len(values), 'Indexes and values have different length'
+
+    array = np.ones(outputShape) * defaultValue
+    
+    for idx, value in zip(spIdxs, values):
+        array[tuple(idx)] = value
+    
+    return array
 
 #================================ BATCH IOU ==============================================
-def batchIou(boxes, box):
-    '''Compute the Intersection-Over-Union of a batch of boxes with another
+def batch_iou(boxes, box):
+    """Compute the Intersection-Over-Union of a batch of boxes with another
     box.
 
     Args:
@@ -11,8 +35,7 @@ def batchIou(boxes, box):
         box2: a single array of [cx, cy, width, height]
     Returns:
         ious: array of a float number in range [0, 1].
-
-    '''
+    """
 
     lr = np.maximum(
         np.minimum(boxes[:,0] + 0.5 * boxes[:,2], box[0] + 0.5 * box[2]) - \
@@ -29,12 +52,119 @@ def batchIou(boxes, box):
     
     return inter/union
 
+#================================ GET ANCHOR INDEX =======================================
+def get_anchor_index(config, aIdxSet, bboxLabel):
+    
+    #compute overlaps of bounding boxes and anchor boxes
+    overlaps = batch_iou(config.ANCHOR_BOX, bboxLabel)
+
+    #achor box index
+    ancIndex = config.ANCHORS_NO
+        
+    #sort for biggest overlaps
+    for ovIndex in np.argsort(overlaps)[::-1]:    
+        #when overlap is zero break
+        if overlaps[ovIndex] <= 0:
+            break
+
+        #if one is found add and break
+        if ovIndex not in aIdxSet:
+            aIdxSet.add(ovIndex)
+            ancIndex = ovIndex
+            break
+
+        # if the largest available overlap is 0, choose the anchor box with the 
+        # one that has the smallest square distance
+        if ancIndex == config.ANCHORS_NO:
+            dist = np.sum(np.square(bboxLabel - config.ANCHOR_BOX), axis=1)
+            for dist in np.argsort(dist):
+                if dist not in aIdxSet:
+                    aIdxSet.add(dist)
+                    ancIndex = dist
+                    break
+
+    return ancIndex
+
+#================================ GET OUTPUTS ============================================
+def get_dense_outputs(config, labels, ancIndexes, deltas, bboxes):
+    '''Transform the data from sparse representation to actual matrixes that can be feed
+    to the network.
+    
+    Arguments:
+        config {dict} -- config file
+        labels {[type]} -- [description]
+        ancIndexes {[type]} -- [description]
+        deltas {[type]} -- [description]
+        bboxes {[type]} -- [description]
+    '''
+
+    #we need to transform this batch annotations into a form we can feed into the model
+    labelIdxs, bboxIdxs, deltaValues, maskIdxs, boxValues  = [], [], [], [], []
+
+    ancIdxSet = set()
+
+
+    for i in range(len(labels)):
+        for j in range(len(labels[i])):
+
+            if (i, ancIndexes[i][j]) not in ancIdxSet:
+                ancIdxSet.add((i, ancIndexes[i][j]))
+
+                labelIdxs.append([i, ancIndexes[i][j], labels[i][j]])
+                
+                maskIdxs.append([i, ancIndexes[i][j]])
+                
+                bboxIdxs.extend([[i, ancIndexes[i][j], k] for k in range(4)])
+                
+                deltaValues.extend(deltas[i][j])
+                
+                boxValues.extend(bboxes[i][j])
+
+    #the boxes where an object is detected have value 1
+    inputMask =  np.reshape(
+            sparse_to_dense(
+                        spIdxs = maskIdxs,
+                        outputShape = [config.BATCH_SIZE, config.ANCHORS_NO],
+                        values = [1.0] * len(maskIdxs)
+                        ),
+            [config.BATCH_SIZE, config.ANCHORS_NO, 1]
+            )
+
+
+    # put into a 3d tensor, for each image, when a bounding box is detected, 
+    # put the bounding boxes deltax [cx, cy, w, h] (the label bbox)
+    inputDelta =  sparse_to_dense(
+                    spIdxs = bboxIdxs, 
+                    outputShape = [config.BATCH_SIZE, config.ANCHORS_NO, 4],
+                    values = deltaValues
+                )
+
+    # put the mathing bounding box anchor from the config file (the config bbox)
+    inputBox =  sparse_to_dense(
+                    spIdxs = bboxIdxs, 
+                    outputShape = [config.BATCH_SIZE, config.ANCHORS_NO, 4],
+                    values = boxValues
+                )
+
+    # where a bounding box is found, put the class index/type (classification style)
+    inputLabels = sparse_to_dense(
+                    spIdxs = labelIdxs,
+                    outputShape = [config.BATCH_SIZE, config.ANCHORS_NO, config.CLASS_NO],
+                    values = [1.0] * len(labelIdxs)
+                )
+
+    # #concatenate ouputs
+    output = np.concatenate(
+                        (inputMask, inputBox,  inputDelta, inputLabels), 
+                        axis=-1
+                    ).astype(np.float32)
+
+    return output
+
 #================================ READ IMAGE AND LABELS ==================================
-def read_image_and_gt(imgPaths, annPaths, config):
-    labels  =   []
-    bboxes  =   []
-    deltas  =   []
-    aidxs   =   []
+def read_image_and_label(imgPaths, annPaths, config):
+
+    labels, bboxes, deltas, ancIndexes = [], [], [] ,[]
 
     #init tensor of images
     imgs = np.zeros((
@@ -44,92 +174,101 @@ def read_image_and_gt(imgPaths, annPaths, config):
                     config.NO_CHANNELS)
                     )
 
-    img_idx = 0
+    imgIndex = 0
 
     #iterate files
     for imgName, annName in zip(imgPaths, annPaths):
 
-        print( imgName, annName ) 
-
         #preprocess img
-        img = cv2.imread(imgName).astype(np.float32, copy=False)
-        
+        img = cv2.imread(imgName).astype(np.float32)
+        # print( imgName )
+        # print( annName )  
         imgHeight, imgWidth = img.shape[0], img.shape[1]
         
         img = cv2.resize( img, (config.IMAGE_WIDTH, config.IMAGE_HEIGHT))
-        
-        img = (img - np.mean(img))/ np.std(img)
-        imgs[img_idx] = np.asarray(img)
-        img_idx += 1
+        # cv2.imshow('image', img)
+        # cv2.waitKey(0)
+        # img = (img - np.mean(img))/ np.std(img)
 
-        
+        # replace standardization with normalization
+        img = img/255
+        # print(img)
+        imgs[imgIndex] = np.asarray(img)
+        imgIndex += 1
+
         # scale annotation
         xScale = config.IMAGE_WIDTH / imgWidth
         yScale = config.IMAGE_HEIGHT / imgHeight
+        # print( yScale ) 
 
+        
         # load annotations
         anns = load_annotation(annName, config)
+    
 
         #split in classes and boxes
         classLabels = [ann[0] for ann in anns]
+        
         bboxLabels  = np.array([a[1:]for a in anns])
 
         #scale boxes
         bboxLabels[:, 0::2] = bboxLabels[:, 0::2] * xScale
         bboxLabels[:, 1::2] = bboxLabels[:, 1::2] * yScale
-
+        
         bboxes.append(bboxLabels)
 
-        aidxImage, deltaImage = [], []
-        aidxSet = set()
-
+        aIdxImage, deltaImage = [], []
+        aIdxSet = set()
 
         #iterate all bounding boxes for a file
+        # print( bboxLabels ) 
         for i in range(len(bboxLabels)):
 
-            #compute overlaps of bounding boxes and anchor boxes
-            overlaps = batch_iou(config.ANCHOR_BOX, bboxLabels[i])
+            ancIndex = get_anchor_index(config, aIdxSet, bboxLabels[i])
 
-            #achor box index
-            ancIndex = len(config.ANCHOR_BOX)
-           
-            maxOvIdx = np.argsort(overlaps)[-1]
-            if overlaps[maxOvIdx] > 0:
-                aidxSet.add(maxOvIdx)
-                ancIndex = maxOvIdx
-                    
-            #TODO :  finish the data generator 
+            #compute deltas for regression
+            cx, cy, boxW, boxH = bboxLabels[i]
+            delta = [0] * 4
+            delta[0] = (cx - config.ANCHOR_BOX[ancIndex][0]) / config.ANCHOR_BOX[ancIndex][2]
+            delta[1] = (cy - config.ANCHOR_BOX[ancIndex][1]) / config.ANCHOR_BOX[ancIndex][3]
+            delta[2] = np.log(boxW / config.ANCHOR_BOX[ancIndex][2])
+            delta[3] = np.log(boxH / config.ANCHOR_BOX[ancIndex][3])
 
-    return imgs, Y
+            # print( bboxLabels[i] )
+            # print( config.ANCHOR_BOX[ancIndex] )  
+            aIdxImage.append(ancIndex)
+            deltaImage.append(delta)
 
-#================================ OPEN PATHS =============================================
-def openPaths(path):
-    '''Open the paths from a file containing them.
+        deltas.append(deltaImage)
+        ancIndexes.append(aIdxImage)
+        labels.append(classLabels)
     
-    Arguments:
-        path {str} -- file to path containing paths
-    
-    Returns:
-        list -- parsed paths
-    '''
+    # print( labels )
+    # print( ancIndexes )  
+    # print( deltas ) 
+    #convert indexes 
+    output = get_dense_outputs(config, labels, ancIndexes, deltas, bboxes)
 
-    with open(path, 'r') as f:
-        paths = f.readlines()
-        for i in range(len(paths)):
-            paths[i] = paths[i].strip()
+    return imgs, output
 
-    return paths
 
-#================================ TEST ===================================================
+#================================ MAIN =================================================
 # if __name__ == '__main__':
-#     import cv2
-#     import config.make_config
+#     from NeuralNetworks.SqueezeDet.config import make_config
     
-#     annPath = 'C:\\Users\\beche\\Documents\\GitHub\\DokProject-master\\Assets\\DummyObjectDataset\\labels.txt'
-#     imgPath = 'C:\\Users\\beche\\Documents\\GitHub\\DokProject-master\\Assets\\DummyObjectDataset\\images.txt'
+#     def openPaths(path):
+#         with open(path, 'r') as f:
+#             paths = f.readlines()
+#             for i in range(len(paths)):
+#                 paths[i] = paths[i].strip()
+
+#         return paths
+
+#     annPath = ".\\Assets\\TrafficSigns\\gt_train.txt"
+#     imgPath = ".\\Assets\\TrafficSigns\\img_train.txt"
 
 #     annPaths = openPaths(annPath)
 #     imgPaths = openPaths(imgPath)
-#     config = make_config.load('C:\\Users\\beche\\Documents\GitHub\\DokProject-master\\NeuralNetworks\\SqueezeDet\\config\\SQD.config')
+#     config = make_config.load('C:\\Users\\beche\\Documents\GitHub\\DokProject-master\\NeuralNetworks\\SqueezeDet\\config\\SQDts.config')
 
-#     read_image_and_gt(imgPaths[:config.BATCH_SIZE], annPaths[:config.BATCH_SIZE], config)
+#     read_image_and_label(imgPaths[:config.BATCH_SIZE], annPaths[:config.BATCH_SIZE], config)

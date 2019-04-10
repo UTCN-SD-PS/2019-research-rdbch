@@ -11,16 +11,16 @@ This is the repo of the FaceDetector project that I am curently doing in collabo
     - [x] Read about the implementation of algorithms
     - [x] Succesfullt choose one(Single Shot Detector)
     
-- [ ] Implementation
+- [x] Implementation
     - [x] Make a dummy dataset to better understand the data
     - [x] Implement the neural network
-    - [ ] Implement the interpretation graph
-    - [ ] Implement the training algorithm
-    - [ ] Implement visualization 
-    - [ ] Experiment on the dummy dataset
+    - [x] Implement the interpretation graph
+    - [x] Implement the training algorithm
+    - [x] Implement visualization 
+    - [x] Experiment on the dummy dataset
     
 - [ ] Training 
-    - [ ] Find and download a suited face dataset
+    - [x] Find and download a suited face dataset
     - [ ] Start training
     
 - [ ] Deploying the model

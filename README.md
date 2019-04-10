@@ -15,7 +15,7 @@ This is the repo of the FaceDetector project that I am curently doing in collabo
     - [x] Make a dummy dataset to better understand the data
     - [x] Implement the neural network
     - [ ] Implement the interpretation graph
-    - [ ] Implement the training algorith
+    - [ ] Implement the training algorithm
     - [ ] Implement visualization 
     - [ ] Experiment on the dummy dataset
     
@@ -42,7 +42,19 @@ easydict>=1.9
 
 ## Installation guide
 
-As at this moment, there isn't a runnable part so this section will be updated in the future acordingly.
+For running this project I reccomend creating a virtual environment after  clonning it.
+<pre>
+$ cd {REPOSITORY_ROOT}
+$ virtualenv venv                # this command will create a new virtual environment in the folder venv
+$ . .\venv\scripts\activate      # this command will activate your virtual env
+</pre>
+
+To install the dependencies, run:
+<pre>
+$ pip install -r Assets\requirements.txt
+</pre>
+
+This stepts should setup your environment.
  
 ## How to run an example
 

@@ -3,16 +3,8 @@ import numpy as np
 import tensorflow as tf
 import keras.backend as K
 
-
+#================================ IOU ====================================================
 def iou(box1, box2):
-    """Compute the Intersection-Over-Union of two given boxes.
-
-    Args:
-        box1: array of 4 elements [cx, cy, width, height].
-        box2: same as above
-    Returns:
-        iou: a float number in range [0, 1]. iou of the two boxes.
-    """
 
     lr = min(box1[0]+0.5*box1[2], box2[0]+0.5*box2[2]) - \
         max(box1[0]-0.5*box1[2], box2[0]-0.5*box2[2])
@@ -27,18 +19,8 @@ def iou(box1, box2):
 
     return 0
 
-
-
+#================================ BATCH IOU ==============================================
 def batch_iou(boxes, box):
-  """Compute the Intersection-Over-Union of a batch of boxes with another
-  box.
-
-  Args:
-    box1: 2D array of [cx, cy, width, height].
-    box2: a box [cx, cy, width, height]
-  Returns:
-    ious: array of a float number in range [0, 1].
-  """
   lr = np.maximum(
       np.minimum(boxes[:,0]+0.5*boxes[:,2], box[0]+0.5*box[2]) - \
       np.maximum(boxes[:,0]-0.5*boxes[:,2], box[0]-0.5*box[2]),
@@ -54,18 +36,8 @@ def batch_iou(boxes, box):
   return inter/union
 
 
-
+#================================ NMS ====================================================
 def nms(boxes, probs, threshold):
-  """Non-Maximum supression.
-  Args:
-    boxes: array of [cx, cy, w, h] (center format)
-    probs: array of probabilities
-    threshold: two boxes are considered overlapping if their IOU is largher than
-        this threshold
-    form: 'center' or 'diagonal'
-  Returns:
-    keep: array of True or False.
-  """
 
   order = probs.argsort()[::-1]
   keep = [True]*len(order)
@@ -77,6 +49,7 @@ def nms(boxes, probs, threshold):
         keep[order[j+i+1]] = False
   return keep
 
+#================================ SPARSE TO DENSE ========================================
 def sparse_to_dense(sp_indices, output_shape, values, default_value=0):
   
     assert len(sp_indices) == len(values), \
@@ -86,7 +59,7 @@ def sparse_to_dense(sp_indices, output_shape, values, default_value=0):
     for idx, value in zip(sp_indices, values):
         array[tuple(idx)] = value
     return array
-
+#================================ CONVERT CHANNELS =======================================
 def bgr_to_rgb(ims):
     """Convert a list of images from BGR format to RGB format."""
     out = []
@@ -94,6 +67,7 @@ def bgr_to_rgb(ims):
         out.append(im[:,:,::-1])
     return out
 
+#================================ BBOX TRANSFORM==========================================
 def bbox_transform(bbox):
     """convert a bbox of form [cx, cy, w, h] to [xmin, ymin, xmax, ymax]. Works
     for numpy array or list of tensors.
@@ -107,6 +81,7 @@ def bbox_transform(bbox):
 
     return out_box
 
+#================================ BBOX TRANSFORM =========================================
 def bbox_transform_inv(bbox):
     """convert a bbox of form [xmin, ymin, xmax, ymax] to [cx, cy, w, h]. Works
     for numpy array or list of tensors.
@@ -123,9 +98,8 @@ def bbox_transform_inv(bbox):
 
     return out_box
 
-
+#================================ EXP ====================================================
 def safe_exp(w, thresh):
-    """Safe exponential function for tensors."""
 
     slope = np.exp(thresh)
     lin_bool = w > thresh
@@ -140,9 +114,8 @@ def safe_exp(w, thresh):
 
     return out
 
-
+#================================ EXP NUMPY ==============================================
 def safe_exp_np(w, thresh):
-    """Safe exponential function for numpy tensors."""
 
     slope = np.exp(thresh)
     lin_bool = w > thresh
@@ -159,20 +132,8 @@ def safe_exp_np(w, thresh):
 
 
 
-
+#================================ BOXFROMDELTA ===========================================
 def boxes_from_deltas(pred_box_delta, config):
-    """
-    Converts prediction deltas to bounding boxes
-    
-    Arguments:
-        pred_box_delta {[type]} -- tensor of deltas
-        config {[type]} -- hyperparameter dict
-    
-    Returns:
-        [type] -- tensor of bounding boxes
-    """
-
-
 
     # Keras backend allows no unstacking
 
@@ -222,18 +183,8 @@ def boxes_from_deltas(pred_box_delta, config):
     return (det_boxes)
 
 
+#================================ BOX2DELTA ==============================================
 def boxes_from_deltas_np(pred_box_delta, config):
-
-    """
-    Converts prediction deltas to bounding boxes, but in numpy
-    
-    Arguments:
-        pred_box_delta {[type]} -- tensor of deltas
-        config {[type]} -- hyperparameter dict
-    
-    Returns:
-        [type] -- tensor of bounding boxes
-    """
 
 
     # Keras backend allows no unstacking
@@ -279,13 +230,8 @@ def boxes_from_deltas_np(pred_box_delta, config):
 
     return (det_boxes)
 
+#================================ SLICE PRED =============================================
 def slice_predictions(y_pred, config):
-    """
-
-    :param y_pred: network output
-    :param config: config file
-    :return: unpadded and sliced predictions
-    """
     
     # calculate non padded entries
     n_outputs = config.CLASS_NO + 1 + 4
@@ -329,13 +275,8 @@ def slice_predictions(y_pred, config):
     return [pred_class_probs, pred_conf, pred_box_delta]
 
 
+#================================ SLICE PRED NUMPY =======================================
 def slice_predictions_np(y_pred, config):
-    """
-    does the same as above, only uses numpy
-    :param y_pred: network output
-    :param config: config file
-    :return: unpadded and sliced predictions
-    """
 
     # calculate non padded entries
     n_outputs = config.CLASS_NO + 1 + 4
@@ -377,19 +318,8 @@ def slice_predictions_np(y_pred, config):
 
     return [pred_class_probs, pred_conf, pred_box_delta]
 
-
+#================================ TENSOR IOU =============================================
 def tensor_iou(box1, box2, input_mask, config):
-    """Computes pairwise IOU of two lists of boxes
-    
-    Arguments:
-        box1 {[type]} -- First list of boxes
-        box2 {[type]} -- Second list of boxes
-        input_mask {[type]} -- Zero-One indicating which boxes to compute
-        config {[type]} -- dict containing hyperparameters
-    
-    Returns:
-        [type] -- [description]
-    """
     
     xmin = K.maximum(box1[0], box2[0])
     ymin = K.maximum(box1[1], box2[1])
@@ -410,12 +340,11 @@ def tensor_iou(box1, box2, input_mask, config):
 
     return intersection / (union + config.EPSILON) * K.reshape(input_mask, [config.BATCH_SIZE, config.ANCHORS_NO])
 
-
-
+#================================ SOFTMAX ================================================
 def softmax(x, axis=-1):
     e_x = np.exp(x - np.max(x))
     return e_x / np.expand_dims(np.sum(e_x,axis=axis), axis=axis)
 
-
+#================================ SIGMOID ================================================
 def sigmoid(x):
     return 1/(1+np.exp(-x))

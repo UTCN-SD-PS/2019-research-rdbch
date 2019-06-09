@@ -10,11 +10,9 @@ def getSQDconfig():
     cfg = ED()
 
     # detection classes
-    # cfg.CLASS_NAMES     =   [str(i) for i in range(43-5)]
-    # cfg.CLASS_NAMES     =   ['A', 'B', 'C', 'D', 'E' ]
-    # cfg.CLASS_NAMES       =   [letter for letter in string.ascii_uppercase[:5]]
-    # cfg.CLASS_NAMES     =   [str(i) for i in range(43)]
-    cfg.CLASS_NAMES     =   ['park', 'stop']
+    # 0 - face
+    # 1 - person
+    cfg.CLASS_NAMES     =   ['0','1']
     
     cfg.CLASS_NO        =   len(cfg.CLASS_NAMES)
     cfg.CLASS_TO_IDX    =   dict(zip(cfg.CLASS_NAMES, range(cfg.CLASS_NO)))
@@ -29,7 +27,7 @@ def getSQDconfig():
     cfg.INPUT_SHAPE     =   ( cfg.IMAGE_HEIGHT, cfg.IMAGE_WIDTH, cfg.NO_CHANNELS)
 
     # batch info
-    cfg.BATCH_SIZE              =   4
+    cfg.BATCH_SIZE      =   8
     
     # optimizer coeffs
     cfg.WEIGHT_DECAY    =   0.0001
@@ -40,14 +38,14 @@ def getSQDconfig():
     cfg.EXP_THRES       =   1.0
 
     # eval thresholds
-    cfg.NMS_THRESH      =   0.4                 # thresholds used for detecting
+    cfg.NMS_THRESH      =   0.2                 # thresholds used for detecting
     cfg.PROB_THRESH     =   0.005               # and keeping the boxes
-    cfg.TOP_N_DETECTION =   4
+    cfg.TOP_N_DETECTION =   32
     cfg.IOU_THRESH      =   0.5
     cfg.FINAL_THRESHOLD =   0.0
     
     #coefficients of loss function
-    cfg.LOSS_COEF_BBOX        = 5.0
+    cfg.LOSS_COEF_BBOX        = 8.0
     cfg.LOSS_COEF_CONF_POS    = 75.0
     cfg.LOSS_COEF_CONF_NEG    = 100.0
     cfg.LOSS_COEF_CLASS       = 1.0
@@ -59,20 +57,21 @@ def getSQDconfig():
 
     # each cell of the grid will have a bounding box with the below W and H
 
-    # cfg.ANCHOR_SEED     =  np.array([[  36.,  37.], [ 175., 174.], [ 60.,  59.],
-    #                                  [ 162.,  87.], [  38.,  90.], [ 258., 173.],
-    #                                  [ 224., 108.], [  78., 170.], [  72.,  43.]])
+    cfg.ANCHOR_SEED     =  np.array([[  36.,  37.], [ 175., 174.], [ 60.,  59.],
+                                     [ 162.,  87.], [  110.,  90.], [ 20.,  23.],
+                                     [ 224., 108.], [  78., 170.], [ 72.,  43.], 
+                                     [224., 225.],  [ 320., 280.],  [70.,  60.],
+                                     [190., 160.],  [ 260., 220.], [140., 120.],
+                                     [370., 350.], [25., 20.]
+                                      ])
                                     
-
-    cfg.ANCHOR_SEED     =  np.array([[  31.,  30.], [ 40., 41.], [ 50.,  51.],
-                                    [  20.,  21.], [ 10., 11.],
-                                    [ 60., 61.], [  100., 110.], [  120.,  110.]])
 
     cfg.ANCHOR_PER_GRID     =   len(cfg.ANCHOR_SEED)
 
     # how many bounding boxes are spaced from one another
     # taken from last layer shape of the model 
-    # 85 50 / 63 50 / 
+    # 85 50 
+
     cfg.ANCHOR_WIDTH      =   40
     cfg.ANCHOR_HEIGHT     =   30
 
@@ -88,7 +87,7 @@ def getSQDconfig():
     return cfg
 
 #=================================== SQD SAVE ============================================
-def save(configDict, path = '.\\NeuralNetworks\\SqueezeDet\\config\\SQDts.config'):
+def save(configDict, path = '.\\NeuralNetworks\\SqueezeDet\\config\\SQD_FaceDetect2.config'):
     
     # make save-able
     for key, val in configDict.items():
@@ -113,17 +112,6 @@ def load(path):
 
 #=================================== SET ANCHORS =========================================
 def set_anchors(cfg):
-    '''Generate all anchors in the form of (CenterX, CenterY, Width, Height)
-
-    
-    Arguments:
-        cfg {dict} -- a configuration dictionary where the anchors width, height, 
-        number/box and seeds are deffinied
-    
-    Returns:
-        array -- an array that contains all bounding boxed in the form specified above
-    '''
-
     H, W, B = cfg.ANCHOR_HEIGHT, cfg.ANCHOR_WIDTH, cfg.ANCHOR_PER_GRID
 
     anchor_shapes = np.reshape(

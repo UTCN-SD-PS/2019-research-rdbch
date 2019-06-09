@@ -3,11 +3,6 @@ import numpy as np
 
 
 def load_only_possible_weights(model, weights_file, verbose = False):
-    """
-    Sets the weights of a model manually by layer name, even if the length of each dimensions does not match.
-    :param model: a keras model
-    :param weights_file: a keras ckpt file
-    """
 
     #load model file
     f = h5py.File(weights_file, 'r')
@@ -78,18 +73,3 @@ def load_only_possible_weights(model, weights_file, verbose = False):
 
             #update weights
             l.set_weights(w_and_b)
-
-
-if __name__ == '__main__':
-
-    import NeuralNetworks.SqueezeDet.config.make_config as make_config
-    from NeuralNetworks.SqueezeDet.model.SqueezeDet import SqueezeDet
-
-    import numpy as np
-    config  = make_config.load('NeuralNetworks\\SqueezeDet\\config\\SQD.config')
-    squeeze = SqueezeDet(config)
-
-    # load_only_possible_weights(squeeze.model, 'Utils\\model.01-0.82.hdf5', verbose=True)
-    
-    squeeze.model.load_weights('Utils\\model.01-0.82.hdf5')
-    squeeze.model.predict(np.zeros((4,800,1000,3)))

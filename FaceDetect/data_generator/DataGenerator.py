@@ -1,7 +1,7 @@
 import random
 
-from NeuralNetworks.SqueezeDet.config import make_config
-from NeuralNetworks.SqueezeDet.data_generator.LoadDataset import read_image_and_label
+from FaceDetect.config import make_config
+from FaceDetect.data_generator.LoadDataset import read_image_and_label
 
 #================================ OPEN PATHS =============================================
 def openPaths(path):
@@ -13,8 +13,8 @@ def openPaths(path):
     return paths
 
 #================================ DATA GENERATOR =========================================
-def data_generator_path(imgNames, lblNames, config, shuffle=True ):
-    assert len(imgNames) == len(lblNames), "Number of images and ground truths not equal"
+def data_generator_path(imgNames, lblNames, config, shuffle=False ):
+    assert len(imgNames) == len(lblNames), "Number of images and ground truths not equal"+ str(len(imgNames) ) + str(len(lblNames))
 
     #permutate images
     if shuffle:
@@ -48,18 +48,3 @@ def data_generator_path(imgNames, lblNames, config, shuffle=True ):
             i = j
             j += config.BATCH_SIZE
             count += 1
-
-# if __name__ == '__main__':
-    
-#     annPath = 'C:\\Users\\beche\\Documents\\GitHub\\DokProject-master\\Assets\\DummyObjectDataset\\labels.txt'
-#     imgPath = 'C:\\Users\\beche\\Documents\\GitHub\\DokProject-master\\Assets\\DummyObjectDataset\\images.txt'
-
-#     annPaths = openPaths(annPath)
-#     imgPaths = openPaths(imgPath)
-
-#     config = make_config.load('C:\\Users\\beche\\Documents\GitHub\\DokProject-master\\NeuralNetworks\\SqueezeDet\\config\\SQD.config')
-
-#     a = data_generator_path(imgPaths, annPaths, config) 
-
-#     while next(a):
-#         print( next(a) ) 

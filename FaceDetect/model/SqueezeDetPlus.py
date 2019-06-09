@@ -28,7 +28,7 @@ class SqueezeDet:
         cfg = self.config
 
         net['input'] = Input(shape = cfg.INPUT_SHAPE )
-        net['1'] = Conv2D(64, (3,3), 
+        net['1'] = Conv2D(96, (3,3), 
                                 strides     =   (2,2), 
                                 padding     =   'same', 
                                 activation  =   'relu', 
@@ -39,24 +39,22 @@ class SqueezeDet:
         net['2'] = MaxPool2D((3,3), strides=(2,2), padding='same')(net['1'])
 
         # fire module 1
-        net['3'] = self._fire_module(net, net['2'], modId = 1, sqNo = 16, expNo = 64)
-        net['4'] = self._fire_module(net, net['3'], modId = 2, sqNo = 16, expNo = 64)
-        net['5'] = MaxPool2D((3,3), strides = (2,2), padding = 'same')(net['4'])
+        net['3'] = self._fire_module(net, net['2'], modId = 1, sqNo = 96, expNo = 64)
+        net['4'] = self._fire_module(net, net['3'], modId = 2, sqNo = 96, expNo = 64)
+        net['5'] = self._fire_module(net, net['4'], modId = 3, sqNo = 192, expNo = 128)
+        net['6'] = MaxPool2D((3,3), strides = (2,2), padding = 'same')(net['5'])
         
         # fire module 2
-        net['6'] = self._fire_module(net, net['5'], modId = 3, sqNo = 32, expNo = 128)
-        net['7'] = self._fire_module(net, net['6'], modId = 4, sqNo = 32, expNo = 128)
-        net['8'] = MaxPool2D((3,3), strides = (2,2), padding = 'same')(net['7'])
+        net['7'] = self._fire_module(net, net['6'], modId = 4, sqNo = 192, expNo = 128)
+        net['8'] = self._fire_module(net, net['7'], modId = 5, sqNo = 288, expNo = 192)
+        net['9'] = self._fire_module(net, net['8'], modId = 6, sqNo = 288, expNo = 192)
+        net['10'] = self._fire_module(net, net['9'], modId = 7, sqNo = 384, expNo = 256)
+        net['11'] = MaxPool2D((3,3), strides = (2,2), padding = 'same')(net['10'])
 
         # fire module 3
-        net['9']  = self._fire_module(net, net['8'],  modId = 5, sqNo = 48, expNo = 192)
-        net['10'] = self._fire_module(net, net['9'],  modId = 6, sqNo = 48, expNo = 192)
-        net['11'] = self._fire_module(net, net['10'], modId = 7, sqNo = 64, expNo = 256)
-        net['12'] = self._fire_module(net, net['11'], modId = 8, sqNo = 64, expNo = 256)
-        
-        # fire module 4
-        net['13'] = self._fire_module(net, net['12'], modId = 9, sqNo = 96, expNo = 384 )
-        net['14'] = self._fire_module(net, net['13'], modId = 10, sqNo = 96, expNo = 384)
+        net['12']  = self._fire_module(net, net['11'], modId = 8, sqNo = 384, expNo = 256)        
+        net['13'] = self._fire_module(net, net['12'], modId = 9,  sqNo = 384, expNo = 256 )
+        net['14'] = self._fire_module(net, net['13'], modId = 10, sqNo = 384, expNo = 256)
         
 
         net['15'] = Dropout(0.15)(net['14'])
@@ -83,13 +81,8 @@ class SqueezeDet:
         
         return model
 
-    #================================ PAD =================================================
+    #================================ PAD ================================================
     def _pad(self, input):
-        """
-        pads the network output so y_pred and y_true have the same dimensions
-        :param input: previous layer
-        :return: layer, last dimensions padded for 4
-        """
 
         padding = np.zeros((3,2))
         padding[2,1] = 4
@@ -129,14 +122,7 @@ class SqueezeDet:
 
    
     #================================ LOSS ===============================================
-    
     def loss(self, y_true, y_pred):
-        """
-        squeezeDet loss function for object detection and classification
-        :param y_true: ground truth with shape [batchsize, #anchors, classes+8+labels]
-        :param y_pred:
-        :return: a tensor of the total loss
-        """
 
         #handle for config
         mc = self.config
@@ -207,6 +193,8 @@ class SqueezeDet:
         return total_loss
 
 
+    #the sublosses, to be used as metrics during training
+
     #================================ BBOX LOSS ==========================================
     def bbox_loss(self, y_true, y_pred):
 
@@ -254,8 +242,10 @@ class SqueezeDet:
 
         return bbox_loss
 
+
     #================================ CONF LOSS ==========================================
     def conf_loss(self, y_true, y_pred):
+
         #handle for config
         mc = self.config
 
@@ -274,7 +264,6 @@ class SqueezeDet:
 
         #number of objects. Used to normalize bbox and classification loss
         num_objects = K.sum(input_mask)
-
 
         #number of class probabilities, n classes for each anchor
         num_class_probs = mc.ANCHOR_PER_GRID * mc.CLASS_NO
@@ -336,9 +325,9 @@ class SqueezeDet:
 
         return conf_loss
 
+
     #================================ CLASS LOSS =========================================
     def class_loss(self, y_true, y_pred):
-
 
         #handle for config
         mc = self.config
@@ -358,6 +347,9 @@ class SqueezeDet:
 
         #number of objects. Used to normalize bbox and classification loss
         num_objects = K.sum(input_mask)
+
+
+        #before computing the losses we need to slice the network outputs
 
         #number of class probabilities, n classes for each anchor
         num_class_probs = mc.ANCHOR_PER_GRID * mc.CLASS_NO

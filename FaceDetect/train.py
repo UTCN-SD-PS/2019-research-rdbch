@@ -1,9 +1,10 @@
 import sys
 sys.path.append('.')
 
-from NeuralNetworks.SqueezeDet.model.SqueezeDet       import  SqueezeDet
-from NeuralNetworks.SqueezeDet.config.make_config     import  load
-from NeuralNetworks.SqueezeDet.data_generator.DataGenerator import data_generator_path
+from FaceDetect.model.SqueezeDetPlus         import  SqueezeDet
+from FaceDetect.config.make_config           import  load
+from FaceDetect.data_generator.DataGenerator import data_generator_path
+from FaceDetect.model.ModelLoader            import  load_only_possible_weights
 
 import os
 import gc
@@ -15,20 +16,20 @@ import keras.backend as K
 from keras import optimizers
 from keras.callbacks import ModelCheckpoint
 
-dataset = 'DummyObjectDataset'
-# dataset = 'TrafficSigns'
-img_file              =   ".\\Assets\\" + dataset + "\\images.txt"
-gt_file               =   ".\\Assets\\" + dataset + "\\labels.txt"
+#================================ PARAMS =================================================
+img_file              =   'path/to/images/path'
+gt_file               =   '/path/to/labels/path'
 log_dir_name          =   '.\\log'
-EPOCHS                =   100
+EPOCHS                =   150
 STEPS                 =   None
 VERBOSE               =   False
 PRINT_TIME            =   0                                                                                                                                                
-REDUCELRONPLATEAU     =   True
+REDUCELRONPLATEAU     =   False
 
-CONFIG = ".\\NeuralNetworks\\SqueezeDet\\config\\SQD.config"
+CONFIG = "path/to/config"
+weightsPath = 'path/to/weights'
 
-
+#================================ TRAIN ==================================================
 def train():
    
     #open files with images and ground truths files with full path names
@@ -63,14 +64,14 @@ def train():
 
     #instantiate model
     squeeze = SqueezeDet(cfg)
+    load_only_possible_weights(squeeze.model, weightsPath, verbose=False)
 
     #callbacks
     cb = []
 
-    #set optimizer 0.0001
-    opt = optimizers.Adam(lr=0.0001, clipnorm=cfg.MAX_GRAD_NORM)
-        
-
+    #set optimizer 0.0001`                
+    opt = optimizers.Adam(lr=0.0001, clipnorm=cfg.MAX_GRAD_NORM, decay = 0.0001)
+   
     #print keras model summary
     if VERBOSE:
         print(squeeze.model.summary())
@@ -79,11 +80,11 @@ def train():
     train_generator = data_generator_path(img_names, gt_names, cfg)
 
     # add a checkpoint saver
-    ckp_saver = ModelCheckpoint(".\\Utils\\model.{epoch:02d}-{loss:.2f}.hdf5", 
+    ckp_saver = ModelCheckpoint(".\\Assets\\Models\\SqueezeDet\\FaceDetection2\\model.{epoch:02d}-{loss:.2f}.hdf5", 
                                 monitor ='loss', 
                                 # verbose=0,
                                 save_best_only=False,
-                                save_weights_only=False)
+                                save_weights_only=True)
     cb.append(ckp_saver)
 
 
@@ -98,10 +99,9 @@ def train():
     squeeze.model.fit_generator(train_generator, 
                                     epochs          =   EPOCHS,
                                     steps_per_epoch =   nbatches_train, 
-                                    callbacks       =   cb)
+                                    callbacks       =   cb,
+                                    initial_epoch   =  42)
 
-
-    gc.collect()
 
 
 if __name__ == "__main__":

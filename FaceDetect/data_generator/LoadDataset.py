@@ -1,20 +1,10 @@
 import cv2
 import numpy as np
-from NeuralNetworks.SqueezeDet.data_generator.LoadAnnotations import load_annotation
+from FaceDetect.data_generator.LoadAnnotations import load_annotation
 
 #================================ SPARSE TO DENSE ========================================
 def sparse_to_dense(spIdxs, outputShape, values, defaultValue=0):
-    """Build a dense matrix from sparse representations.
 
-    Args:
-        spIdxs: Index to place values.
-        outputShape: shape of the dense matrix.
-        values: Values corresponds to the index in each row of spIdxs
-        defaultValue: values to set for indices not specified in sp_indices.
-
-    Return:
-        A dense numpy N-D array with shape output_shape.
-    """
 
     assert len(spIdxs) == len(values), 'Indexes and values have different length'
 
@@ -27,15 +17,6 @@ def sparse_to_dense(spIdxs, outputShape, values, defaultValue=0):
 
 #================================ BATCH IOU ==============================================
 def batch_iou(boxes, box):
-    """Compute the Intersection-Over-Union of a batch of boxes with another
-    box.
-
-    Args:
-        box1: 2D array of [cx, cy, width, height].
-        box2: a single array of [cx, cy, width, height]
-    Returns:
-        ious: array of a float number in range [0, 1].
-    """
 
     lr = np.maximum(
         np.minimum(boxes[:,0] + 0.5 * boxes[:,2], box[0] + 0.5 * box[2]) - \
@@ -73,31 +54,20 @@ def get_anchor_index(config, aIdxSet, bboxLabel):
             ancIndex = ovIndex
             break
 
-        # if the largest available overlap is 0, choose the anchor box with the 
-        # one that has the smallest square distance
-        if ancIndex == config.ANCHORS_NO:
-            dist = np.sum(np.square(bboxLabel - config.ANCHOR_BOX), axis=1)
-            for dist in np.argsort(dist):
-                if dist not in aIdxSet:
-                    aIdxSet.add(dist)
-                    ancIndex = dist
-                    break
+    # if the largest available overlap is 0, choose the anchor box with the 
+    # one that has the smallest square distance
+    if ancIndex == config.ANCHORS_NO:
+        dist = np.sum(np.square(bboxLabel - config.ANCHOR_BOX), axis=1)
+        for dist in np.argsort(dist):
+            if dist not in aIdxSet:
+                aIdxSet.add(dist)
+                ancIndex = dist
+                break
 
     return ancIndex
 
 #================================ GET OUTPUTS ============================================
 def get_dense_outputs(config, labels, ancIndexes, deltas, bboxes):
-    '''Transform the data from sparse representation to actual matrixes that can be feed
-    to the network.
-    
-    Arguments:
-        config {dict} -- config file
-        labels {[type]} -- [description]
-        ancIndexes {[type]} -- [description]
-        deltas {[type]} -- [description]
-        bboxes {[type]} -- [description]
-    '''
-
     #we need to transform this batch annotations into a form we can feed into the model
     labelIdxs, bboxIdxs, deltaValues, maskIdxs, boxValues  = [], [], [], [], []
 
@@ -181,18 +151,14 @@ def read_image_and_label(imgPaths, annPaths, config):
 
         #preprocess img
         img = cv2.imread(imgName).astype(np.float32)
-        # print( imgName )
-        # print( annName )  
+
         imgHeight, imgWidth = img.shape[0], img.shape[1]
         
         img = cv2.resize( img, (config.IMAGE_WIDTH, config.IMAGE_HEIGHT))
-        # cv2.imshow('image', img)
-        # cv2.waitKey(0)
-        # img = (img - np.mean(img))/ np.std(img)
-
+ 
         # replace standardization with normalization
         img = img/255
-        # print(img)
+
         imgs[imgIndex] = np.asarray(img)
         imgIndex += 1
 
@@ -200,10 +166,11 @@ def read_image_and_label(imgPaths, annPaths, config):
         xScale = config.IMAGE_WIDTH / imgWidth
         yScale = config.IMAGE_HEIGHT / imgHeight
         # print( yScale ) 
+        # print( xScale ) 
 
         
         # load annotations
-        anns = load_annotation(annName, config)
+        anns = load_annotation(annName, config, xScale, yScale)
     
 
         #split in classes and boxes
@@ -211,17 +178,11 @@ def read_image_and_label(imgPaths, annPaths, config):
         
         bboxLabels  = np.array([a[1:]for a in anns])
 
-        #scale boxes
-        bboxLabels[:, 0::2] = bboxLabels[:, 0::2] * xScale
-        bboxLabels[:, 1::2] = bboxLabels[:, 1::2] * yScale
-        
         bboxes.append(bboxLabels)
 
         aIdxImage, deltaImage = [], []
         aIdxSet = set()
 
-        #iterate all bounding boxes for a file
-        # print( bboxLabels ) 
         for i in range(len(bboxLabels)):
 
             ancIndex = get_anchor_index(config, aIdxSet, bboxLabels[i])
@@ -231,11 +192,9 @@ def read_image_and_label(imgPaths, annPaths, config):
             delta = [0] * 4
             delta[0] = (cx - config.ANCHOR_BOX[ancIndex][0]) / config.ANCHOR_BOX[ancIndex][2]
             delta[1] = (cy - config.ANCHOR_BOX[ancIndex][1]) / config.ANCHOR_BOX[ancIndex][3]
-            delta[2] = np.log(boxW / config.ANCHOR_BOX[ancIndex][2])
-            delta[3] = np.log(boxH / config.ANCHOR_BOX[ancIndex][3])
+            delta[2] = np.log(boxW / config.ANCHOR_BOX[ancIndex][2] )
+            delta[3] = np.log(boxH / config.ANCHOR_BOX[ancIndex][3] )
 
-            # print( bboxLabels[i] )
-            # print( config.ANCHOR_BOX[ancIndex] )  
             aIdxImage.append(ancIndex)
             deltaImage.append(delta)
 
@@ -243,32 +202,9 @@ def read_image_and_label(imgPaths, annPaths, config):
         ancIndexes.append(aIdxImage)
         labels.append(classLabels)
     
-    # print( labels )
-    # print( ancIndexes )  
-    # print( deltas ) 
+
     #convert indexes 
     output = get_dense_outputs(config, labels, ancIndexes, deltas, bboxes)
 
     return imgs, output
 
-
-#================================ MAIN =================================================
-# if __name__ == '__main__':
-#     from NeuralNetworks.SqueezeDet.config import make_config
-    
-#     def openPaths(path):
-#         with open(path, 'r') as f:
-#             paths = f.readlines()
-#             for i in range(len(paths)):
-#                 paths[i] = paths[i].strip()
-
-#         return paths
-
-#     annPath = ".\\Assets\\TrafficSigns\\gt_train.txt"
-#     imgPath = ".\\Assets\\TrafficSigns\\img_train.txt"
-
-#     annPaths = openPaths(annPath)
-#     imgPaths = openPaths(imgPath)
-#     config = make_config.load('C:\\Users\\beche\\Documents\GitHub\\DokProject-master\\NeuralNetworks\\SqueezeDet\\config\\SQDts.config')
-
-#     read_image_and_label(imgPaths[:config.BATCH_SIZE], annPaths[:config.BATCH_SIZE], config)

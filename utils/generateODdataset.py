@@ -1,3 +1,7 @@
+#=========================================================================================
+# SCRIPT USED FOR GENERATING A DATASET WITH LETTERS SPREAD ACROSS AN IMAGE
+#=========================================================================================
+
 import cv2
 import numpy as np
 import random

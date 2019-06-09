@@ -19,16 +19,16 @@ This is the repo of the FaceDetector project that I am curently doing in collabo
     - [x] Implement visualization 
     - [x] Experiment on the dummy dataset
     
-- [ ] Training 
+- [x] Training 
     - [x] Find and download a suited face dataset
-    - [ ] Start training
+    - [x] Start training
     
-- [ ] Deploying the model
-    - [ ] Optimize the model for inference
+- [x] Deploying the model
+    - [x] Optimize the model for inference
     - [ ] Fine-tune the model for desired applications
     - [ ] Make a nice user interface
     
-- [ ] Draw conclusion
+- [x] Draw conclusion
 
 ## Depencies
 
@@ -38,6 +38,7 @@ keras>=2.2.4
 numpy>=1.16.2
 opencv-python>=4.0.0.21
 easydict>=1.9
+openvino (installed from Intel website)
 </pre>
 
 ## Installation guide
